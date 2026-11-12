@@ -11,3 +11,39 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+enum ReadingTime {
+  Fasting
+  BeforeMeal
+  AfterMeal
+  Dinner
+}
+
+enum ReadingUnit {
+  MG_DL
+  MMOL_L
+}
+
+model User {
+  id  String @id @default(uuid())
+  name String
+  email String @unique
+  password String 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  readings GlucoseReading[]
+}
+
+model GlucoseReading {
+  id String @id @default(uuid())
+  userId String 
+  value Float 
+  unit ReadingUnit @default(MG_DL) 
+  readingType ReadingTime
+  recordedAt DateTime 
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, recordedAt])
+}
