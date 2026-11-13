@@ -18,6 +18,8 @@ interface CurrentUserResponse {
   data: AuthUser & { createdAt: string }
 }
 
+const isAuthPage = (page: Page) => page === 'login' || page === 'register'
+
 const isAuthUser = (value: unknown): value is AuthUser =>
   typeof value === 'object' && value !== null &&
   'id' in value && typeof value.id === 'string' &&
@@ -25,11 +27,6 @@ const isAuthUser = (value: unknown): value is AuthUser =>
   'email' in value && typeof value.email === 'string'
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [page, setPage] = useState<Page>('dashboard')
-  const [readings, setReadingState] = useState<Reading[]>(createInitialReadings)
-  const [reportDate, setReportDate] = useState(today())
-  const [reportMonth, setReportMonth] = useState(today().slice(0, 7))
-  const [authSession, setAuthSessionState] = useState<AuthSession | null>(null)
   const [restoreSeed] = useState<RestoreSeed>(() => {
     try {
       return { token: window.sessionStorage.getItem(AUTH_TOKEN_STORAGE_KEY), storageError: false }
@@ -37,6 +34,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return { token: null, storageError: true }
     }
   })
+  const [page, setPageState] = useState<Page>(() => restoreSeed.token ? 'dashboard' : 'login')
+  const [readings, setReadingState] = useState<Reading[]>(createInitialReadings)
+  const [reportDate, setReportDate] = useState(today())
+  const [reportMonth, setReportMonth] = useState(today().slice(0, 7))
+  const [authSession, setAuthSessionState] = useState<AuthSession | null>(null)
   const [restoringToken, setRestoringToken] = useState<string | null>(restoreSeed.token)
   const [authStatus, setAuthStatus] = useState<AuthStatus>(
     restoreSeed.storageError ? 'restore-error' : restoreSeed.token ? 'loading' : 'anonymous',
@@ -48,7 +50,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const restoreStarted = useRef(false)
   const authRevision = useRef(0)
   const initialAuthRevision = useRef(0)
+  const isAuthenticated = authStatus === 'authenticated' && authSession !== null
 
+  const setPage = useCallback((nextPage: Page) => {
+    if (!isAuthenticated && !isAuthPage(nextPage)) {
+      setPageState('login')
+      return
+    }
+    if (isAuthenticated && isAuthPage(nextPage)) {
+      setPageState('dashboard')
+      return
+    }
+    setPageState(nextPage)
+  }, [isAuthenticated])
   const setReadings = useCallback((update: (current: Reading[]) => Reading[]) => setReadingState(update), [])
   const showToast = useCallback((message: string) => {
     setToast(message)
@@ -62,6 +76,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setRestoringToken(null)
     setAuthStatus(session ? 'authenticated' : 'anonymous')
     setAuthError(null)
+    setPageState(session ? 'dashboard' : 'login')
 
     try {
       if (session) {
@@ -80,7 +95,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     setAuthSession(null)
-    setPage('login')
   }, [setAuthSession])
 
   useEffect(() => {
@@ -107,6 +121,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setRestoringToken(null)
       setAuthStatus('authenticated')
       setAuthError(null)
+      setPageState((currentPage) => isAuthPage(currentPage) ? 'dashboard' : currentPage)
     }).catch((error: unknown) => {
       if (authRevision.current !== revision) return
 
@@ -118,6 +133,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const message = 'Could not verify your saved session. Check your connection and reload to retry.'
       setAuthStatus('restore-error')
       setAuthError(message)
+      setPageState('login')
       showToast(message)
     })
   }, [restoreSeed, setAuthSession, showToast])
@@ -141,7 +157,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     toast,
     showToast,
     clearToast,
-  }), [page, readings, setReadings, reportDate, reportMonth, authSession, authToken, authStatus, authError, setAuthSession, logout, toast, showToast, clearToast])
+  }), [page, setPage, readings, setReadings, reportDate, reportMonth, authSession, authToken, authStatus, authError, setAuthSession, logout, toast, showToast, clearToast])
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
 }

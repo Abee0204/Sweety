@@ -48,7 +48,7 @@ const getApiErrorMessage = (error: unknown) =>
   error instanceof Error ? error.message : 'Unable to complete the request. Please try again.'
 
 export function AuthForm({ registering }: { registering: boolean }) {
-  const { setPage, showToast, setAuthSession } = useAppContext()
+  const { setPage, showToast, setAuthSession, authError } = useAppContext()
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [formError, setFormError] = useState('')
@@ -69,7 +69,6 @@ export function AuthForm({ registering }: { registering: boolean }) {
       }
 
       setAuthSession(session)
-      setPage('dashboard')
       showToast(`Welcome back, ${session.user.name}.`)
     } catch (error) {
       const fieldErrors = getApiFieldErrors(error)
@@ -99,6 +98,7 @@ export function AuthForm({ registering }: { registering: boolean }) {
   })
 
   return <div className="auth-card"><div className="auth-mobile-mark"><span className="brand-mark"><Icon name="drop" size={20}/></span></div><div className="eyebrow">{registering ? 'A FRESH START' : 'WELCOME BACK'}</div><h1>{registering ? 'Create your account' : 'Good to see you'}</h1><p className="auth-subtitle">{registering ? 'A few details and you’re all set.' : 'Sign in to continue your wellness journey.'}</p>
+    {authError && <div className="field-error" role="status">{authError}</div>}
     {formError && <div className="field-error" role="alert">{formError}</div>}
     {successMessage && <p className="auth-subtitle" role="status">{successMessage}</p>}
     {registering ? <form noValidate onSubmit={registerSubmit}>
