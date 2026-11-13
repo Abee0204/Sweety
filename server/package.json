@@ -7,6 +7,7 @@
     "test": "npm run build && node --test",
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
+    "seed": "prisma db seed --config prisma7.config.js",
     "start": "node dist/src/server.js"
   },
   "keywords": [],
