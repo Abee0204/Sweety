@@ -9,6 +9,7 @@ export type ApiMethod = "GET" | "POST" | "PATCH" | "DELETE";
 export interface ApiRequestOptions {
   method?: ApiMethod;
   body?: unknown;
+  headers?: HeadersInit;
 }
 
 export class ApiError extends Error {
@@ -46,15 +47,14 @@ const getErrorMessage = (
 
 export const apiRequest = async <T = unknown>(
   path: string,
-  { method = "GET", body }: ApiRequestOptions = {},
+  { method = "GET", body, headers: requestHeaders }: ApiRequestOptions = {},
 ): Promise<T | undefined> => {
   const normalizedPath = path.replace(/^\/+/, "");
-  const headers: Record<string, string> = {
-    Accept: "application/json",
-  };
+  const headers = new Headers(requestHeaders);
+  headers.set("Accept", "application/json");
 
-  if (body !== undefined) {
-    headers["Content-Type"] = "application/json";
+  if (body !== undefined && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
   }
 
   const response = await fetch(`${API_BASE_URL}/${normalizedPath}`, {

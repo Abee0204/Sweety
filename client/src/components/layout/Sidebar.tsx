@@ -3,7 +3,7 @@ import type { Page } from '../../types'
 import { Icon } from '../common/Icon'
 
 export function Sidebar() {
-  const { page, setPage } = useAppContext()
+  const { page, setPage, authSession, authToken, logout } = useAppContext()
   const navigate = (next: Page) => setPage(next)
 
   return <aside className="sidebar"><button className="brand" onClick={() => navigate('dashboard')} aria-label="Sweety home"><span className="brand-mark"><Icon name="drop" size={22}/></span><span>Sweety<small>GLUCOSE TRACKER</small></span></button>
@@ -13,6 +13,6 @@ export function Sidebar() {
       <button className="nav-item" onClick={() => navigate('add')}><Icon name="plus"/>Add reading</button>
     </nav>
     <div className="sidebar-spacer"/><div className="goal-card"><div className="goal-icon"><Icon name="check" size={17}/></div><strong>One day at a time</strong><p>Small steps make a big difference.</p></div>
-    <button className="profile-button" onClick={() => navigate('login')}><span className="avatar">S</span><span className="profile-label"><strong>My account</strong><small>Local demo</small></span><Icon name="logout" size={17}/></button>
+    <button className="profile-button" onClick={() => authToken ? logout() : navigate('login')}><span className="avatar">{authSession?.user.name.charAt(0).toUpperCase() ?? 'S'}</span><span className="profile-label"><strong>{authSession?.user.name ?? 'My account'}</strong><small>{authSession?.user.email ?? 'Local demo'}</small></span><Icon name="logout" size={17}/></button>
   </aside>
 }
