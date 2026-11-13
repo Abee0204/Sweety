@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { apiRequest, ApiError } from '../api/client'
 import { getReadings, toFrontendReading } from '../features/readings/api'
 import type { AuthSession, AuthStatus, AuthUser, Page, Reading, ReadingsStatus } from '../types'
-import { today } from '../utils/dates'
+import { utcToday } from '../utils/dates'
 import { AppContext } from './context'
 
 const AUTH_TOKEN_STORAGE_KEY = 'sweety.auth.token'
@@ -60,8 +60,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [readingsStatus, setReadingsStatus] = useState<ReadingsStatus>('idle')
   const [readingsError, setReadingsError] = useState<string | null>(null)
   const [readingsRetry, setReadingsRetry] = useState(0)
-  const [reportDate, setReportDate] = useState(today())
-  const [reportMonth, setReportMonth] = useState(today().slice(0, 7))
+  const [initialUtcDate] = useState(() => utcToday())
+  const [reportDate, setReportDate] = useState(initialUtcDate)
+  const [reportMonth, setReportMonth] = useState(initialUtcDate.slice(0, 7))
   const [authSession, setAuthSessionState] = useState<AuthSession | null>(null)
   const [restoringToken, setRestoringToken] = useState<string | null>(restoreSeed.token)
   const [authStatus, setAuthStatus] = useState<AuthStatus>(

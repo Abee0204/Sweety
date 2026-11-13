@@ -76,7 +76,7 @@ export function toCreateReadingRequest(reading: GlucoseValues): CreateReadingReq
   }
 }
 
-export function toFrontendReading(reading: BackendReading): Reading {
+export function toFrontendReading(reading: Omit<BackendReading, 'userId'>): Reading {
   const recordedAt = new Date(reading.recordedAt)
   return {
     id: reading.id,
