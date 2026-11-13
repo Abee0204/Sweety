@@ -1,5 +1,8 @@
 import prisma from "../config/database.js";
-import type { CreateReadingInput } from "../utils/reading.validation.js";
+import type {
+  CreateReadingInput,
+  ReadingDateFilters,
+} from "../utils/reading.validation.js";
 
 const DAILY_READING_LIMIT = 4;
 
@@ -60,5 +63,44 @@ export const createReading = async (
         createdAt: true,
       },
     });
+  });
+};
+
+export const getReadings = async (
+  userId: string,
+  filters: ReadingDateFilters,
+) => {
+  // Date filters are UTC calendar days; endDate includes the full UTC day.
+  const recordedAt: { gte?: Date; lt?: Date } = {};
+
+  if (filters.startDate) {
+    recordedAt.gte = filters.startDate;
+  }
+  if (filters.endDate) {
+    const endDate = filters.endDate;
+    recordedAt.lt = new Date(
+      Date.UTC(
+        endDate.getUTCFullYear(),
+        endDate.getUTCMonth(),
+        endDate.getUTCDate() + 1,
+      ),
+    );
+  }
+
+  return prisma.glucoseReading.findMany({
+    where: {
+      userId,
+      ...(Object.keys(recordedAt).length > 0 ? { recordedAt } : {}),
+    },
+    orderBy: { recordedAt: "desc" },
+    select: {
+      id: true,
+      userId: true,
+      value: true,
+      unit: true,
+      readingType: true,
+      recordedAt: true,
+      createdAt: true,
+    },
   });
 };
