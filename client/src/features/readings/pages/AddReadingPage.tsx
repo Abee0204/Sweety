@@ -1,20 +1,60 @@
+import { useState } from 'react'
+import { ApiError } from '../../../api/client'
 import { useAppContext } from '../../../context/useAppContext'
-import { today } from '../../../utils/dates'
+import { createReading, toFrontendReading } from '../api'
 import type { GlucoseValues } from '../validation'
 import { ReadingForm } from '../components/ReadingForm'
 
-export function AddReadingPage() {
-  const { readings, setReadings, setPage, showToast } = useAppContext()
-  const count = readings.filter((reading) => reading.date === today()).length
-  const saveReading = (values: GlucoseValues) => {
-    if (readings.filter((reading) => reading.date === values.date).length >= 4) {
-      showToast('Daily limit reached — you can record up to 4 readings per day.')
-      return
+function getSubmitErrorMessage(error: unknown): string {
+  if (error instanceof ApiError) {
+    if (error.status === 409) {
+      return 'Daily limit reached — you can record up to 4 readings per UTC day.'
     }
-    setReadings((current) => [{ ...values, id: Date.now() }, ...current])
-    setPage('dashboard')
-    showToast('Reading saved to your daily log.')
+    if (error.status === 401) {
+      return 'Your session has expired. Please sign in again.'
+    }
+
+    const response = error.data
+    if (typeof response === 'object' && response !== null && 'errors' in response) {
+      const errors = response.errors
+      if (typeof errors === 'object' && errors !== null) {
+        const messages = Object.values(errors).flatMap((value) =>
+          Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [],
+        )
+        if (messages.length) return messages.join(' ')
+      }
+    }
+    return error.message
   }
 
-  return <div className="form-page"><button className="back-link" onClick={() => setPage('dashboard')}>← <span>Back to dashboard</span></button><div className="form-heading"><div className="eyebrow">DAILY LOG</div><h1>Add a reading</h1><p>Keep track of how you’re feeling, one moment at a time.</p></div><ReadingForm count={count} onCancel={() => setPage('dashboard')} onSave={saveReading}/></div>
+  return error instanceof Error ? error.message : 'Could not save the reading. Please try again.'
+}
+
+export function AddReadingPage() {
+  const { authToken, setReadings, setPage, showToast } = useAppContext()
+  const [submitError, setSubmitError] = useState<string | null>(null)
+
+  const saveReading = async (values: GlucoseValues) => {
+    setSubmitError(null)
+    if (!authToken) {
+      setSubmitError('Your session has expired. Please sign in again.')
+      return
+    }
+
+    try {
+      const response = await createReading(authToken, values)
+      if (!response?.success || !response.data) {
+        throw new Error('The server returned an invalid reading response.')
+      }
+
+      const savedReading = toFrontendReading(response.data)
+      setReadings((current) => [savedReading, ...current])
+      setPage('dashboard')
+      showToast('Reading saved to your daily log.')
+    } catch (error: unknown) {
+      setSubmitError(getSubmitErrorMessage(error))
+    }
+  }
+
+  return <div className="form-page"><button className="back-link" onClick={() => setPage('dashboard')}>← <span>Back to dashboard</span></button><div className="form-heading"><div className="eyebrow">DAILY LOG</div><h1>Add a reading</h1><p>Keep track of how you’re feeling, one moment at a time.</p></div><ReadingForm onCancel={() => setPage('dashboard')} onSave={saveReading} serverError={submitError}/></div>
 }

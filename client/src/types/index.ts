@@ -4,7 +4,7 @@ export type ReadingType = 'Fasting' | 'Before Meal' | 'After Meal' | 'Dinner'
 export type AuthStatus = 'loading' | 'anonymous' | 'authenticated' | 'restore-error'
 
 export interface Reading {
-  id: number
+  id: number | string
   value: number
   unit: ReadingUnit
   type: ReadingType
