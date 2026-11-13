@@ -62,12 +62,24 @@ const typeFromBackend: Record<BackendReadingType, ReadingType> = {
   Dinner: 'Dinner',
 }
 
-export function toCreateReadingRequest(reading: GlucoseValues): CreateReadingRequest {
-  const recordedAt = new Date(`${reading.date}T${reading.time}:00`)
+function getRecordedAtDate(date: string, time: string): Date {
+  const recordedAt = new Date(`${date}T${time}:00`)
   if (!Number.isFinite(recordedAt.getTime())) {
     throw new Error('Enter a valid reading date and time.')
   }
+  return recordedAt
+}
 
+export function getUtcReadingDate(date: string, time: string): string | null {
+  try {
+    return getRecordedAtDate(date, time).toISOString().slice(0, 10)
+  } catch {
+    return null
+  }
+}
+
+export function toCreateReadingRequest(reading: GlucoseValues): CreateReadingRequest {
+  const recordedAt = getRecordedAtDate(reading.date, reading.time)
   return {
     value: reading.value,
     unit: unitToBackend[reading.unit],
