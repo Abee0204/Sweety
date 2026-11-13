@@ -1,5 +1,5 @@
 import { createContext } from 'react'
-import type { Page, Reading } from '../types'
+import type { AuthSession, Page, Reading } from '../types'
 
 export interface AppContextValue {
   page: Page
@@ -10,6 +10,8 @@ export interface AppContextValue {
   setReportDate: (date: string) => void
   reportMonth: string
   setReportMonth: (month: string) => void
+  authSession: AuthSession | null
+  setAuthSession: (session: AuthSession | null) => void
   toast: string
   showToast: (message: string) => void
   clearToast: () => void
