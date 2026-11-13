@@ -139,9 +139,33 @@ npm run lint
 
 No separate frontend automated test command is configured in this repository.
 
-## Screenshots and demo
+## Screenshots
 
-No application screenshots or recorded demo video are currently committed with the project.
+These application views were captured from the running app with the demo account. The tablet-width Add Reading view was captured without browser developer tools. Final image files are in `docs/screenshots/`.
+
+### Login
+
+![Sweety login page](docs/screenshots/login.jpg)
+
+### Dashboard with demo readings
+
+![Sweety dashboard with demo readings](docs/screenshots/dashboard.jpg)
+
+### Add Reading
+
+![Sweety Add Reading page](docs/screenshots/add-reading.jpg)
+
+### Daily Report
+
+![Sweety daily report](docs/screenshots/daily-report.jpg)
+
+### Monthly Report
+
+![Sweety monthly report](docs/screenshots/monthly-report.jpg)
+
+### Add Reading at tablet width
+
+![Sweety Add Reading page at tablet width](docs/screenshots/add-reading-ipad.jpg)
 
 ## Notes
 
