@@ -57,12 +57,21 @@ export const apiRequest = async <T = unknown>(
     headers.set("Content-Type", "application/json");
   }
 
-  const response = await fetch(`${API_BASE_URL}/${normalizedPath}`, {
-    method,
-    headers,
-    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
-  });
-  const responseText = await response.text();
+  let response: Response;
+  let responseText: string;
+  try {
+    response = await fetch(`${API_BASE_URL}/${normalizedPath}`, {
+      method,
+      headers,
+      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+    });
+    responseText = await response.text();
+  } catch {
+    throw new ApiError(
+      "Unable to connect to the server. Please check your connection and try again.",
+      0,
+    );
+  }
   let responseData: unknown;
 
   if (responseText.trim()) {
