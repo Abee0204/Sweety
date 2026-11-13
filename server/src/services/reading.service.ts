@@ -13,6 +13,13 @@ export class DailyReadingLimitError extends Error {
   }
 }
 
+export class DuplicateReadingSlotError extends Error {
+  constructor() {
+    super("A reading for this slot already exists today");
+    this.name = "DuplicateReadingSlotError";
+  }
+}
+
 export const createReading = async (
   userId: string,
   reading: CreateReadingInput,
@@ -30,6 +37,22 @@ export const createReading = async (
     await transaction.$queryRaw`
       SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))::text AS locked
     `;
+
+    const existingSlot = await transaction.glucoseReading.findFirst({
+      where: {
+        userId,
+        readingType: reading.readingType,
+        recordedAt: {
+          gte: dayStart,
+          lt: dayEnd,
+        },
+      },
+      select: { id: true },
+    });
+
+    if (existingSlot) {
+      throw new DuplicateReadingSlotError();
+    }
 
     const count = await transaction.glucoseReading.count({
       where: {

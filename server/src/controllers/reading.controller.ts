@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import {
   createReading,
   DailyReadingLimitError,
+  DuplicateReadingSlotError,
   getReadings,
 } from "../services/reading.service.js";
 import {
@@ -34,6 +35,13 @@ export const create = async (req: Request, res: Response) => {
       data: reading,
     });
   } catch (error) {
+    if (error instanceof DuplicateReadingSlotError) {
+      return res.status(409).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
     if (error instanceof DailyReadingLimitError) {
       return res.status(409).json({
         success: false,

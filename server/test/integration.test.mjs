@@ -60,6 +60,12 @@ const utcDay = (date, hour) => {
   return timestamp.toISOString();
 };
 
+const offsetUtcDay = (date, offset) => {
+  const shifted = new Date(date);
+  shifted.setUTCDate(shifted.getUTCDate() + offset);
+  return shifted;
+};
+
 const today = new Date();
 today.setUTCHours(0, 0, 0, 0);
 const reportDay = new Date(today);
@@ -134,6 +140,7 @@ after(async () => {
 test("Sweety backend PostgreSQL integration", async (t) => {
   let primaryToken;
   let secondaryToken;
+  let concurrentToken;
 
   await t.test("registration validates input, hashes passwords, and rejects duplicates", async () => {
     const response = await register(fixtureEmails[0], "Integration User A");
@@ -212,6 +219,13 @@ test("Sweety backend PostgreSQL integration", async (t) => {
     });
     assert.equal(secondaryLogin.status, 200);
     secondaryToken = (await json(secondaryLogin)).data.token;
+
+    const concurrentLogin = await request("/api/auth/login", {
+      method: "POST",
+      body: { email: fixtureEmails[2], password },
+    });
+    assert.equal(concurrentLogin.status, 200);
+    concurrentToken = (await json(concurrentLogin)).data.token;
   });
 
   await t.test("authentication protects current-user API without exposing hashes", async () => {
@@ -287,9 +301,11 @@ test("Sweety backend PostgreSQL integration", async (t) => {
     assert.equal(persisted.length, 4);
     assert.ok(persisted.every(({ userId }) => userId === users.primary.id));
 
+    const duplicateSlot = await createReading(primaryToken, primaryReadings[0]);
+    assert.equal(duplicateSlot.status, 409);
     assert.equal(
-      (await createReading(primaryToken, primaryReadings[0])).status,
-      409,
+      (await json(duplicateSlot)).message,
+      "A reading for this slot already exists today",
     );
 
     const secondaryReadings = [
@@ -325,24 +341,84 @@ test("Sweety backend PostgreSQL integration", async (t) => {
     primaryReadingIds.push((await json(boundaryResponse)).data.id);
   });
 
-  await t.test("concurrent reading requests cannot exceed the daily limit", async () => {
-    const concurrentLogin = await request("/api/auth/login", {
-      method: "POST",
-      body: { email: fixtureEmails[2], password },
-    });
-    assert.equal(concurrentLogin.status, 200);
-    const concurrentToken = (await json(concurrentLogin)).data.token;
+  await t.test("reading slots are unique per user and UTC calendar day", async () => {
+    const slotDay = offsetUtcDay(priorReportDay, -3);
+    const fasting = {
+      value: 95,
+      unit: "MG_DL",
+      readingType: "Fasting",
+      recordedAt: utcDay(slotDay, 8),
+    };
+    assert.equal((await createReading(concurrentToken, fasting)).status, 201);
+
+    const differentType = {
+      ...fasting,
+      readingType: "BeforeMeal",
+      recordedAt: utcDay(slotDay, 12),
+    };
+    assert.equal((await createReading(concurrentToken, differentType)).status, 201);
+
+    const duplicateWithDifferentTime = {
+      ...fasting,
+      recordedAt: utcDay(slotDay, 18),
+    };
+    const duplicate = await createReading(concurrentToken, duplicateWithDifferentTime);
+    assert.equal(duplicate.status, 409);
+    assert.equal(
+      (await json(duplicate)).message,
+      "A reading for this slot already exists today",
+    );
+
+    const nextUtcDay = {
+      ...fasting,
+      recordedAt: utcDay(offsetUtcDay(slotDay, 1), 8),
+    };
+    assert.equal((await createReading(concurrentToken, nextUtcDay)).status, 201);
+  });
+
+  await t.test("concurrent duplicate slot submissions allow only one creation", async () => {
     const body = {
       value: 101,
       unit: "MG_DL",
-      readingType: "Fasting",
-      recordedAt: utcDay(priorReportDay, 10),
+      readingType: "AfterMeal",
+      recordedAt: utcDay(offsetUtcDay(priorReportDay, -4), 10),
     };
     const responses = await Promise.all(
       Array.from({ length: 10 }, () => createReading(concurrentToken, body)),
     );
+
+    assert.equal(responses.filter(({ status }) => status === 201).length, 1);
+    assert.equal(responses.filter(({ status }) => status === 409).length, 9);
+    const conflicts = await Promise.all(
+      responses.filter(({ status }) => status === 409).map(json),
+    );
+    assert.ok(
+      conflicts.every(({ message }) => message === "A reading for this slot already exists today"),
+    );
+  });
+
+  await t.test("concurrent reading requests cannot exceed the daily limit", async () => {
+    const readingTypes = ["Fasting", "BeforeMeal", "AfterMeal", "Dinner"];
+    const responses = await Promise.all(
+      Array.from({ length: 10 }, (_, index) =>
+        createReading(concurrentToken, {
+          value: 101,
+          unit: "MG_DL",
+          readingType: readingTypes[index % readingTypes.length],
+          recordedAt: utcDay(offsetUtcDay(priorReportDay, -5), 10),
+        }),
+      ),
+    );
     assert.equal(responses.filter(({ status }) => status === 201).length, 4);
     assert.equal(responses.filter(({ status }) => status === 409).length, 6);
+
+    const limited = await createReading(concurrentToken, {
+      value: 105,
+      unit: "MG_DL",
+      readingType: "Fasting",
+      recordedAt: utcDay(offsetUtcDay(priorReportDay, -5), 20),
+    });
+    assert.equal(limited.status, 409);
   });
 
   await t.test("reading retrieval is ordered, date-inclusive, and user-scoped", async () => {
