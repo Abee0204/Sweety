@@ -28,7 +28,7 @@ export const createReading = async (
   return prisma.$transaction(async (transaction) => {
     // The transaction-scoped advisory lock serializes each user's daily count-and-create.
     await transaction.$queryRaw`
-      SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))
+      SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))::text AS locked
     `;
 
     const count = await transaction.glucoseReading.count({
