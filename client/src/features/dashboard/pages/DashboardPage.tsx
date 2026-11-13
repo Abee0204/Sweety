@@ -1,4 +1,5 @@
 import { useAppContext } from '../../../context/useAppContext'
+import { useNavigate } from 'react-router-dom'
 import type { Reading, ReadingUnit } from '../../../types'
 import { shortDate, utcToday } from '../../../utils/dates'
 import { Button } from '../../../components/common/Button'
@@ -28,13 +29,14 @@ function getUnitAverages(readings: Reading[]) {
 }
 
 export function DashboardPage() {
-  const { readings, setPage } = useAppContext()
+  const { readings } = useAppContext()
+  const navigate = useNavigate()
   const utcDay = utcToday()
   const todayReadings = readings
     .filter((reading) => isRecordedOnUtcDay(reading, utcDay))
     .sort((left, right) => recordedAtTime(right) - recordedAtTime(left))
   const averages = getUnitAverages(todayReadings)
-  const addReading = () => setPage('add')
+  const addReading = () => navigate('/readings/add')
   const latest = todayReadings[0]
   const sorted = [...readings].sort((left, right) => recordedAtTime(right) - recordedAtTime(left))
   const averageValue = averages.length
@@ -51,8 +53,8 @@ export function DashboardPage() {
       <article className="summary-card"><div className="card-top"><span className="card-label">AVERAGE GLUCOSE</span><span className="metric-icon lavender"><Icon name="chart" size={18}/></span></div><div className="metric-value">{averageValue}{averages.length > 0 && <span className="unit-label"> {averageUnits}</span>}</div><div className="metric-foot">{averages.length ? 'Across today’s readings' : 'No readings recorded today'}</div></article>
       <article className="summary-card"><div className="card-top"><span className="card-label">LATEST READING</span><span className="metric-icon peach"><Icon name="clock" size={18}/></span></div><div className="metric-value">{latest?.value ?? '—'}<span className="unit-label"> {latest?.unit ?? ''}</span></div><div className="metric-foot">{latest ? `${latest.type} · ${latest.time}` : 'No readings yet today'}</div></article>
     </section>
-    <section className="dashboard-grid"><article className="panel trend-panel"><div className="panel-heading"><div><h2>Daily glucose trend</h2><p>Your readings throughout the day</p></div><button className="text-button" onClick={() => setPage('daily-report')}>View report <Icon name="chevron" size={15}/></button></div>{todayReadings.length ? <><div className="chart-legend"><span><i/>Glucose <small>mg/dL</small></span><span className="target-key"><i/>Target range</span></div><TrendChart readings={todayReadings}/><div className="chart-axis"><span>6 am</span><span>10 am</span><span>2 pm</span><span>6 pm</span><span>10 pm</span></div></> : <EmptyState className="empty-chart" icon={<Icon name="chart" size={21}/>} title="Your trend will appear here" description="Log your first reading to start tracking." action={<button className="text-button" onClick={addReading}>Add a reading <Icon name="chevron" size={15}/></button>}/>}</article>
-      <RecentReadings readings={sorted} onAdd={addReading} onReports={() => setPage('daily-report')}/>
+    <section className="dashboard-grid"><article className="panel trend-panel"><div className="panel-heading"><div><h2>Daily glucose trend</h2><p>Your readings throughout the day</p></div><button className="text-button" onClick={() => navigate('/reports/daily')}>View report <Icon name="chevron" size={15}/></button></div>{todayReadings.length ? <><div className="chart-legend"><span><i/>Glucose <small>mg/dL</small></span><span className="target-key"><i/>Target range</span></div><TrendChart readings={todayReadings}/><div className="chart-axis"><span>6 am</span><span>10 am</span><span>2 pm</span><span>6 pm</span><span>10 pm</span></div></> : <EmptyState className="empty-chart" icon={<Icon name="chart" size={21}/>} title="Your trend will appear here" description="Log your first reading to start tracking." action={<button className="text-button" onClick={addReading}>Add a reading <Icon name="chevron" size={15}/></button>}/>}</article>
+      <RecentReadings readings={sorted} onAdd={addReading} onReports={() => navigate('/reports/daily')}/>
     </section>
     <div className="privacy-note"><span className="privacy-dot"/>Your readings are saved securely to your account.</div>
   </>

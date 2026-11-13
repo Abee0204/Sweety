@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ApiError, apiClient } from '../../../api/client'
@@ -48,7 +49,8 @@ const getApiErrorMessage = (error: unknown) =>
   error instanceof Error ? error.message : 'Unable to complete the request. Please try again.'
 
 export function AuthForm({ registering }: { registering: boolean }) {
-  const { setPage, showToast, setAuthSession, authError } = useAppContext()
+  const { showToast, setAuthSession, authError } = useAppContext()
+  const navigate = useNavigate()
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [formError, setFormError] = useState('')
@@ -69,6 +71,7 @@ export function AuthForm({ registering }: { registering: boolean }) {
       }
 
       setAuthSession(session)
+      navigate('/dashboard', { replace: true })
       showToast(`Welcome back, ${session.user.name}.`)
     } catch (error) {
       const fieldErrors = getApiFieldErrors(error)
@@ -112,5 +115,5 @@ export function AuthForm({ registering }: { registering: boolean }) {
       <Field id="auth-password" label="Password" error={login.formState.errors.password?.message}><div className="password-wrap"><input id="auth-password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" placeholder="Enter your password" aria-invalid={!!login.formState.errors.password} aria-describedby={login.formState.errors.password ? 'auth-password-error' : undefined} {...login.register('password')}/><button type="button" className="password-toggle" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? 'Hide password' : 'Show password'}><Icon name={showPassword ? 'eyeOff' : 'eye'} size={18}/></button></div></Field>
       <Button className="auth-submit" type="submit" disabled={!login.formState.isValid || login.formState.isSubmitting}>{login.formState.isSubmitting ? <><span className="spinner"/>Signing in…</> : <>Sign in <Icon name="chevron" size={17}/></>}</Button>
     </form>}
-    <div className="auth-switch">{registering ? 'Already have an account?' : 'New to Sweety?'} <button type="button" onClick={() => setPage(registering ? 'login' : 'register')}>{registering ? 'Sign in' : 'Create account'}</button></div><div className="demo-note"><span className="privacy-dot"/>Your account details are sent to Sweety.</div></div>
+    <div className="auth-switch">{registering ? 'Already have an account?' : 'New to Sweety?'} <button type="button" onClick={() => navigate(registering ? '/login' : '/register')}>{registering ? 'Sign in' : 'Create account'}</button></div><div className="demo-note"><span className="privacy-dot"/>Your account details are sent to Sweety.</div></div>
 }

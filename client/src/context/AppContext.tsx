@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { apiRequest, ApiError } from '../api/client'
 import { getReadings, toFrontendReading } from '../features/readings/api'
-import type { AuthSession, AuthStatus, AuthUser, Page, Reading, ReadingsStatus } from '../types'
+import type { AuthSession, AuthStatus, AuthUser, Reading, ReadingsStatus } from '../types'
 import { utcToday } from '../utils/dates'
 import { AppContext } from './context'
 
@@ -17,8 +17,6 @@ interface CurrentUserResponse {
   success: boolean
   data: AuthUser & { createdAt: string }
 }
-
-const isAuthPage = (page: Page) => page === 'login' || page === 'register'
 
 const isAuthUser = (value: unknown): value is AuthUser =>
   typeof value === 'object' && value !== null &&
@@ -55,7 +53,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return { token: null, storageError: true }
     }
   })
-  const [page, setPageState] = useState<Page>(() => restoreSeed.token ? 'dashboard' : 'login')
   const [readings, setReadingState] = useState<Reading[]>([])
   const [readingsStatus, setReadingsStatus] = useState<ReadingsStatus>('idle')
   const [readingsError, setReadingsError] = useState<string | null>(null)
@@ -76,19 +73,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const authRevision = useRef(0)
   const initialAuthRevision = useRef(0)
   const readingRequests = useRef(new Map<string, Promise<Reading[]>>())
-  const isAuthenticated = authStatus === 'authenticated' && authSession !== null
-
-  const setPage = useCallback((nextPage: Page) => {
-    if (!isAuthenticated && !isAuthPage(nextPage)) {
-      setPageState('login')
-      return
-    }
-    if (isAuthenticated && isAuthPage(nextPage)) {
-      setPageState('dashboard')
-      return
-    }
-    setPageState(nextPage)
-  }, [isAuthenticated])
   const setReadings = useCallback((update: (current: Reading[]) => Reading[]) => setReadingState(update), [])
   const retryReadings = useCallback(() => {
     setReadingsStatus('loading')
@@ -107,7 +91,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setRestoringToken(null)
     setAuthStatus(session ? 'authenticated' : 'anonymous')
     setAuthError(null)
-    setPageState(session ? 'dashboard' : 'login')
     setReadingState([])
     setReadingsStatus(session ? 'loading' : 'idle')
     setReadingsError(null)
@@ -158,7 +141,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setReadingsStatus('loading')
       setReadingsError(null)
       setAuthError(null)
-      setPageState((currentPage) => isAuthPage(currentPage) ? 'dashboard' : currentPage)
     }).catch((error: unknown) => {
       if (authRevision.current !== revision) return
 
@@ -170,7 +152,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const message = 'Could not verify your saved session. Check your connection and reload to retry.'
       setAuthStatus('restore-error')
       setAuthError(message)
-      setPageState('login')
       showToast(message)
     })
   }, [restoreSeed, setAuthSession, showToast])
@@ -210,8 +191,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const authToken = authSession?.token ?? restoringToken
   const value = useMemo(() => ({
-    page,
-    setPage,
     readings,
     setReadings,
     readingsStatus,
@@ -230,7 +209,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     toast,
     showToast,
     clearToast,
-  }), [page, setPage, readings, setReadings, readingsStatus, readingsError, retryReadings, reportDate, reportMonth, authSession, authToken, authStatus, authError, setAuthSession, logout, toast, showToast, clearToast])
+  }), [readings, setReadings, readingsStatus, readingsError, retryReadings, reportDate, reportMonth, authSession, authToken, authStatus, authError, setAuthSession, logout, toast, showToast, clearToast])
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
 }

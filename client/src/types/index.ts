@@ -1,4 +1,3 @@
-export type Page = 'dashboard' | 'daily-report' | 'monthly-report' | 'add' | 'login' | 'register'
 export type ReadingUnit = 'mg/dL' | 'mmol/L'
 export type ReadingType = 'Fasting' | 'Before Meal' | 'After Meal' | 'Dinner'
 export type AuthStatus = 'loading' | 'anonymous' | 'authenticated' | 'restore-error'

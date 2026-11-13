@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { NavLink } from 'react-router-dom'
 import { ApiError } from '../../../api/client'
 import { useAppContext } from '../../../context/useAppContext'
 import type { Reading } from '../../../types'
@@ -75,7 +76,6 @@ export function ReportsPageView({ range }: { range: 'daily' | 'monthly' }) {
     authStatus,
     readings,
     readingsStatus,
-    setPage,
     reportDate,
     setReportDate,
     reportMonth,
@@ -159,7 +159,7 @@ export function ReportsPageView({ range }: { range: 'daily' | 'monthly' }) {
   const minimum = getStatisticDisplay(summary?.byUnit, 'minimum')
 
   return <><div className="page-heading"><div><div className="eyebrow">YOUR PROGRESS</div><h1>Reports</h1><p>Patterns become clearer one reading at a time.</p></div></div>
-    <section className="report-toolbar panel"><div className="segmented-control"><button className={range === 'daily' ? 'segment active' : 'segment'} onClick={() => setPage('daily-report')}>Daily report</button><button className={range === 'monthly' ? 'segment active' : 'segment'} onClick={() => setPage('monthly-report')}>Monthly report</button></div><label className="report-date"><Icon name="calendar" size={17}/>{range === 'daily' ? <input type="date" value={selectedDate} max={utcToday()} onChange={(event) => setReportDate(event.target.value)}/> : <input type="month" value={selectedDate} max={utcToday().slice(0, 7)} onChange={(event) => setReportMonth(event.target.value)}/>}</label></section>
+    <section className="report-toolbar panel"><div className="segmented-control"><NavLink to="/reports/daily" className={({ isActive }) => isActive ? 'segment active' : 'segment'}>Daily report</NavLink><NavLink to="/reports/monthly" className={({ isActive }) => isActive ? 'segment active' : 'segment'}>Monthly report</NavLink></div><label className="report-date"><Icon name="calendar" size={17}/>{range === 'daily' ? <input type="date" value={selectedDate} max={utcToday()} onChange={(event) => setReportDate(event.target.value)}/> : <input type="month" value={selectedDate} max={utcToday().slice(0, 7)} onChange={(event) => setReportMonth(event.target.value)}/>}</label></section>
     {requestStatus === 'loading' && <div className="panel report-request-state" role="status">Loading {range} report…</div>}
     {requestStatus === 'error' && <div className="panel report-request-state" role="alert">{reportError ?? 'Could not load this report.'} <button className="text-button" onClick={() => setRetryCount((count) => count + 1)}>Retry</button></div>}
     <section className="report-stats"><ReportStat title="AVERAGE GLUCOSE" value={average.value} unit={average.unit} accent="mint"/><ReportStat title="HIGHEST READING" value={maximum.value} unit={maximum.unit} accent="peach"/><ReportStat title="LOWEST READING" value={minimum.value} unit={minimum.unit} accent="lavender"/><ReportStat title="TOTAL READINGS" value={summary ? `${summary.totalReadings}` : '—'} unit={summary ? 'entries' : ''} accent="blue"/></section>

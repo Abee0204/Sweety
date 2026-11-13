@@ -1,6 +1,7 @@
 import { AppProvider } from '../context/AppContext'
 import { AppRoutes } from './routes'
+import { BrowserRouter } from 'react-router-dom'
 
 export default function App() {
-  return <AppProvider><AppRoutes/></AppProvider>
+  return <BrowserRouter><AppProvider><AppRoutes/></AppProvider></BrowserRouter>
 }

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { ApiError } from '../../../api/client'
 import { useAppContext } from '../../../context/useAppContext'
 import { createReading, getUtcReadingDate, toFrontendReading } from '../api'
@@ -37,7 +38,8 @@ function getSubmitErrorMessage(error: unknown): string {
 }
 
 export function AddReadingPage() {
-  const { authToken, readings, readingsStatus, setReadings, setPage, showToast } = useAppContext()
+  const { authToken, readings, readingsStatus, setReadings, showToast } = useAppContext()
+  const navigate = useNavigate()
   const [submitError, setSubmitError] = useState<string | null>(null)
   const slotChecksReady = readingsStatus === 'loaded'
 
@@ -68,12 +70,12 @@ export function AddReadingPage() {
 
       const savedReading = toFrontendReading(response.data)
       setReadings((current) => [savedReading, ...current])
-      setPage('dashboard')
+      navigate('/dashboard')
       showToast('Reading saved to your daily log.')
     } catch (error: unknown) {
       setSubmitError(getSubmitErrorMessage(error))
     }
   }
 
-  return <div className="form-page"><button className="back-link" onClick={() => setPage('dashboard')}>← <span>Back to dashboard</span></button><div className="form-heading"><div className="eyebrow">DAILY LOG</div><h1>Add a reading</h1><p>Keep track of how you’re feeling, one moment at a time.</p></div><ReadingForm onCancel={() => setPage('dashboard')} onSave={saveReading} onSlotSelectionChange={() => setSubmitError(null)} isSlotUsed={isSlotUsed} slotChecksReady={slotChecksReady} serverError={submitError}/></div>
+  return <div className="form-page"><button className="back-link" onClick={() => navigate('/dashboard')}>← <span>Back to dashboard</span></button><div className="form-heading"><div className="eyebrow">DAILY LOG</div><h1>Add a reading</h1><p>Keep track of how you’re feeling, one moment at a time.</p></div><ReadingForm onCancel={() => navigate('/dashboard')} onSave={saveReading} onSlotSelectionChange={() => setSubmitError(null)} isSlotUsed={isSlotUsed} slotChecksReady={slotChecksReady} serverError={submitError}/></div>
 }

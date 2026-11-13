@@ -1,9 +1,7 @@
 import { createContext } from 'react'
-import type { AuthSession, AuthStatus, Page, Reading, ReadingsStatus } from '../types'
+import type { AuthSession, AuthStatus, Reading, ReadingsStatus } from '../types'
 
 export interface AppContextValue {
-  page: Page
-  setPage: (page: Page) => void
   readings: Reading[]
   setReadings: (update: (readings: Reading[]) => Reading[]) => void
   readingsStatus: ReadingsStatus
