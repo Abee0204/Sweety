@@ -8,10 +8,10 @@ import { Icon } from '../../../components/common/Icon'
 import { TrendChart } from '../../reports/components/TrendChart'
 
 export function DashboardPage() {
-  const { readings, setPage, showToast } = useAppContext()
+  const { readings, setPage } = useAppContext()
   const todayReadings = readings.filter((reading) => reading.date === today()).sort((a, b) => b.time.localeCompare(a.time))
   const average = todayReadings.length ? Math.round(todayReadings.reduce((sum, reading) => sum + toMg(reading), 0) / todayReadings.length) : null
-  const addReading = () => todayReadings.length >= 4 ? showToast('Daily limit reached — you can record up to 4 readings per day.') : setPage('add')
+  const addReading = () => setPage('add')
   const latest = todayReadings[0]
   const sorted = [...readings].sort((a, b) => `${b.date}T${b.time}`.localeCompare(`${a.date}T${a.time}`))
 

@@ -27,6 +27,17 @@ export interface CreateReadingResponse {
   data: BackendReading
 }
 
+export interface GetReadingsResponse {
+  success: true
+  message: string
+  data: BackendReading[]
+}
+
+export interface ReadingDateFilters {
+  startDate?: string
+  endDate?: string
+}
+
 const unitToBackend: Record<ReadingUnit, BackendReadingUnit> = {
   'mg/dL': 'MG_DL',
   'mmol/L': 'MMOL_L',
@@ -74,6 +85,7 @@ export function toFrontendReading(reading: BackendReading): Reading {
     type: typeFromBackend[reading.readingType],
     date: `${recordedAt.getFullYear()}-${String(recordedAt.getMonth() + 1).padStart(2, '0')}-${String(recordedAt.getDate()).padStart(2, '0')}`,
     time: `${String(recordedAt.getHours()).padStart(2, '0')}:${String(recordedAt.getMinutes()).padStart(2, '0')}`,
+    recordedAt: reading.recordedAt,
   }
 }
 
@@ -82,5 +94,16 @@ export function createReading(token: string, reading: GlucoseValues) {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
     body: toCreateReadingRequest(reading),
+  })
+}
+
+export function getReadings(token: string, filters: ReadingDateFilters = {}) {
+  const query = new URLSearchParams()
+  if (filters.startDate) query.set('startDate', filters.startDate)
+  if (filters.endDate) query.set('endDate', filters.endDate)
+  const queryString = query.toString()
+
+  return apiRequest<GetReadingsResponse>(`/readings${queryString ? `?${queryString}` : ''}`, {
+    headers: { Authorization: `Bearer ${token}` },
   })
 }

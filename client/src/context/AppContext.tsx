@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { apiRequest, ApiError } from '../api/client'
-import { createInitialReadings } from '../data/mockData'
-import type { AuthSession, AuthStatus, AuthUser, Page, Reading } from '../types'
+import { getReadings, toFrontendReading } from '../features/readings/api'
+import type { AuthSession, AuthStatus, AuthUser, Page, Reading, ReadingsStatus } from '../types'
 import { today } from '../utils/dates'
 import { AppContext } from './context'
 
@@ -26,6 +26,27 @@ const isAuthUser = (value: unknown): value is AuthUser =>
   'name' in value && typeof value.name === 'string' &&
   'email' in value && typeof value.email === 'string'
 
+function mergeReadings(current: Reading[], fetched: Reading[]): Reading[] {
+  const byId = new Map(fetched.map((reading) => [String(reading.id), reading]))
+  for (const reading of current) {
+    if (!byId.has(String(reading.id))) byId.set(String(reading.id), reading)
+  }
+
+  return [...byId.values()].sort((left, right) => {
+    const leftTime = left.recordedAt ? Date.parse(left.recordedAt) : Date.parse(`${left.date}T${left.time}`)
+    const rightTime = right.recordedAt ? Date.parse(right.recordedAt) : Date.parse(`${right.date}T${right.time}`)
+    return rightTime - leftTime
+  })
+}
+
+function getReadingsErrorMessage(error: unknown): string {
+  if (error instanceof ApiError && error.status === 401) {
+    return 'Your session expired. Sign in again to load your readings.'
+  }
+  if (error instanceof ApiError) return error.message
+  return 'Could not load your readings. Check your connection and try again.'
+}
+
 export function AppProvider({ children }: { children: ReactNode }) {
   const [restoreSeed] = useState<RestoreSeed>(() => {
     try {
@@ -35,7 +56,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   })
   const [page, setPageState] = useState<Page>(() => restoreSeed.token ? 'dashboard' : 'login')
-  const [readings, setReadingState] = useState<Reading[]>(createInitialReadings)
+  const [readings, setReadingState] = useState<Reading[]>([])
+  const [readingsStatus, setReadingsStatus] = useState<ReadingsStatus>('idle')
+  const [readingsError, setReadingsError] = useState<string | null>(null)
+  const [readingsRetry, setReadingsRetry] = useState(0)
   const [reportDate, setReportDate] = useState(today())
   const [reportMonth, setReportMonth] = useState(today().slice(0, 7))
   const [authSession, setAuthSessionState] = useState<AuthSession | null>(null)
@@ -50,6 +74,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const restoreStarted = useRef(false)
   const authRevision = useRef(0)
   const initialAuthRevision = useRef(0)
+  const readingRequests = useRef(new Map<string, Promise<Reading[]>>())
   const isAuthenticated = authStatus === 'authenticated' && authSession !== null
 
   const setPage = useCallback((nextPage: Page) => {
@@ -64,6 +89,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setPageState(nextPage)
   }, [isAuthenticated])
   const setReadings = useCallback((update: (current: Reading[]) => Reading[]) => setReadingState(update), [])
+  const retryReadings = useCallback(() => {
+    setReadingsStatus('loading')
+    setReadingsError(null)
+    setReadingsRetry((count) => count + 1)
+  }, [])
   const showToast = useCallback((message: string) => {
     setToast(message)
     window.setTimeout(() => setToast((current) => current === message ? '' : current), 3500)
@@ -77,6 +107,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setAuthStatus(session ? 'authenticated' : 'anonymous')
     setAuthError(null)
     setPageState(session ? 'dashboard' : 'login')
+    setReadingState([])
+    setReadingsStatus(session ? 'loading' : 'idle')
+    setReadingsError(null)
+    if (session) setReadingsRetry((count) => count + 1)
 
     try {
       if (session) {
@@ -120,6 +154,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setAuthSessionState({ user: response.data, token })
       setRestoringToken(null)
       setAuthStatus('authenticated')
+      setReadingsStatus('loading')
+      setReadingsError(null)
       setAuthError(null)
       setPageState((currentPage) => isAuthPage(currentPage) ? 'dashboard' : currentPage)
     }).catch((error: unknown) => {
@@ -138,12 +174,48 @@ export function AppProvider({ children }: { children: ReactNode }) {
     })
   }, [restoreSeed, setAuthSession, showToast])
 
+  useEffect(() => {
+    const token = authStatus === 'authenticated' ? authSession?.token : null
+    if (!token) return
+
+    let active = true
+    let request = readingRequests.current.get(token)
+    if (!request) {
+      request = getReadings(token).then((response) => {
+        if (!response?.success || !Array.isArray(response.data)) {
+          throw new Error('The server returned an invalid readings response.')
+        }
+        return response.data.map(toFrontendReading)
+      })
+      readingRequests.current.set(token, request)
+      void request.finally(() => {
+        if (readingRequests.current.get(token) === request) readingRequests.current.delete(token)
+      }).catch(() => undefined)
+    }
+
+    void request.then((fetched) => {
+      if (!active) return
+      setReadingState((current) => mergeReadings(current, fetched))
+      setReadingsStatus('loaded')
+      setReadingsError(null)
+    }).catch((error: unknown) => {
+      if (!active) return
+      setReadingsStatus('error')
+      setReadingsError(getReadingsErrorMessage(error))
+    })
+
+    return () => { active = false }
+  }, [authStatus, authSession?.token, readingsRetry])
+
   const authToken = authSession?.token ?? restoringToken
   const value = useMemo(() => ({
     page,
     setPage,
     readings,
     setReadings,
+    readingsStatus,
+    readingsError,
+    retryReadings,
     reportDate,
     setReportDate,
     reportMonth,
@@ -157,7 +229,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     toast,
     showToast,
     clearToast,
-  }), [page, setPage, readings, setReadings, reportDate, reportMonth, authSession, authToken, authStatus, authError, setAuthSession, logout, toast, showToast, clearToast])
+  }), [page, setPage, readings, setReadings, readingsStatus, readingsError, retryReadings, reportDate, reportMonth, authSession, authToken, authStatus, authError, setAuthSession, logout, toast, showToast, clearToast])
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
 }
